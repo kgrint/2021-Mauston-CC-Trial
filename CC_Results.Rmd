@@ -1,0 +1,284 @@
+---
+title: "CC_Results"
+output: html_document
+---
+
+```{r}
+#Loading Packages
+library(car)
+library(ggplot2)
+library(emmeans)
+library(lme4)
+library(lmerTest)
+library(tidyverse)
+library(multcomp)
+library(multcompView)
+library(dplyr)
+```
+
+```{r}
+getwd()
+data1= read.csv(file="Voss Farm_CC.csv")
+str(data1)
+```
+
+```{r}
+data2 = data1 %>%
+  mutate(plot = as.character(plot),
+         biomass = round(biomass,0),
+         other= (100 - total_c - total_n),
+         lbs_n = round(lbs_n,0),
+         lbs_c = round(lbs_c,0)) %>%
+  group_by(cc,plot) %>%
+  summarise(biomass = mean(biomass),
+            total_n = mean(total_n),
+            lbs_n = mean(lbs_n),
+            total_c = mean(total_c),
+            lbs_c = mean(lbs_c),
+            c_n = mean(c_n))
+
+```
+
+```{r}
+data3 = data2 %>%
+  group_by(cc) %>%
+  summarise(biomass = mean(biomass),
+            total_n = mean(total_n),
+            lbs_n = mean(lbs_n),
+            total_c = mean(total_c),
+            lbs_c = mean(lbs_c),
+            c_n = mean(c_n)) %>%
+  mutate(biomass = round(biomass,0),
+         lbs_n = round(lbs_n,0),
+         lbs_c = round(lbs_c,0))
+```
+
+# Analysis of 3 treatments
+
+```{r}
+data4 = data2 %>%
+  filter(cc %in% c("Berseem-Crimson Clover", "Oats-Berseem", "N-Hancer")) %>%
+  mutate(rep = fct_recode(plot,
+                          "1" = "1",
+                          "1" = "2",
+                          "1" = "3",
+                          "2" = "5",
+                          "2" = "6",
+                          "2" = "7",
+                          "3" = "8",
+                          "3" = "9",
+                          "3" = "10"))
+```
+## Analysis of CC Biomass
+```{r}
+cc_bio = lmer(biomass ~ cc + (1|rep), data= data4)
+plot(cc_bio)
+qqnorm(resid(cc_bio))
+#assumptions satisfactorily met
+```
+
+```{r}
+anova(cc_bio)
+#cc type not significant for cover crop biomass
+```
+
+```{r}
+bio_means = lsmeans(cc_bio, ~ cc, contr= "pairwise", adjust= "none")
+bio_cld = cld(bio_means$lsmean, alpha=0.05, Letters=letters, sort=TRUE, reverse=TRUE)
+
+bio_cld = as_tibble(bio_cld) %>%
+  rename(biomass = lsmean) %>%
+  mutate(biomass = round(biomass,0))
+  
+```
+
+```{r}
+bio_3 = ggplot(bio_cld, aes(x = cc, y = biomass, color = cc)) +
+  geom_point(size = 5) +
+  geom_text(aes(label = biomass), nudge_y = 1100) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = .3, size= 1) +
+  geom_jitter(data = data4, mapping = aes(x = cc), alpha = 0.2, size = 3) +
+  theme(legend.position = "none",
+        plot.title= element_blank(),
+        axis.title.x= element_text(size= 20),
+        axis.title.y= element_blank(),
+        axis.text= element_text(size= 15),) +
+  coord_flip() +
+  labs(y = bquote('biomass'~(lbs~acre^-1)))
+
+bio_3
+```
+
+
+## Analysis of lbs of N
+```{r}
+n_model = lmer(lbs_n ~ cc + (1|rep), data= data4)
+plot(n_model)
+qqnorm(resid(n_model))
+#assumptions satisfactorily met
+```
+
+```{r}
+anova(n_model)
+#cc type not significant for n amount supplied
+```
+
+```{r}
+n_means = lsmeans(n_model, ~ cc, contr= "pairwise", adjust= "none")
+n_cld = cld(n_means$lsmean, alpha=0.05, Letters=letters, sort=TRUE, reverse=TRUE)
+
+n_cld = as_tibble(n_cld) %>%
+  rename(lbs_n = lsmean) %>%
+  mutate(lbs_n = round(lbs_n,0))
+  
+```
+
+```{r}
+n_3 = ggplot(n_cld, aes(x = cc, y = lbs_n, color = cc)) +
+  geom_point(size = 5) +
+  geom_text(aes(label = lbs_n), nudge_y = 30) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = .3, size= 1) +
+  geom_jitter(data = data4, mapping = aes(x = cc), alpha = 0.2, size = 3) +
+  theme(legend.position = "none",
+        plot.title= element_blank(),
+        axis.title.x= element_text(size= 20),
+        axis.title.y= element_blank(),
+        axis.text= element_text(size= 15),) +
+  coord_flip() +
+  labs(y = bquote('nitrogen'~(lbs~acre^-1)))
+
+n_3
+```
+
+## Analysis of lbs of C
+```{r}
+c_model = lmer(lbs_c ~ cc + (1|rep), data= data4)
+plot(c_model)
+qqnorm(resid(c_model))
+#assumptions satisfactorily met
+```
+
+```{r}
+anova(c_model)
+#cc type not significant for c amount supplied
+```
+
+```{r}
+c_means = lsmeans(c_model, ~ cc, contr= "pairwise", adjust= "none")
+c_cld = cld(c_means$lsmean, alpha=0.05, Letters=letters, sort=TRUE, reverse=TRUE)
+
+c_cld = as_tibble(c_cld) %>%
+  rename(lbs_c = lsmean) %>%
+  mutate(lbs_c = round(lbs_c,0))
+  
+```
+
+```{r}
+c_3 = ggplot(c_cld, aes(x = cc, y = lbs_c, color = cc)) +
+  geom_point(size = 5) +
+  geom_text(aes(label = lbs_c), nudge_y = 350) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = .3, size= 1) +
+  geom_jitter(data = data4, mapping = aes(x = cc), alpha = 0.2, size = 3) +
+  theme(legend.position = "none",
+        plot.title= element_blank(),
+        axis.title.x= element_text(size= 20),
+        axis.title.y= element_blank(),
+        axis.text= element_text(size= 15),) +
+  coord_flip() +
+  labs(y = bquote('carbon'~(lbs~acre^-1)))
+
+c_3
+```
+
+# Plotting General Data
+## CC Biomass Figure
+```{r}
+biomass = data3 %>% 
+  ggplot(aes(biomass, cc, color = cc)) +
+  geom_point(size = 5) +
+  geom_text(aes(label = biomass), nudge_x = 400) +
+  geom_jitter(data = data2, mapping = aes(y = cc), alpha = 0.2, size = 3) +
+  theme(legend.position = "none",
+        plot.title= element_blank(),
+        axis.title.x=element_text(size= 20),
+        axis.title.y= element_blank(),
+        axis.text= element_text(size= 15),
+        strip.text.x= element_text(size=20)) +
+  labs(x = bquote('biomass'~(lbs~acre^-1)))
+
+biomass
+```
+
+
+## Lbs of Nitrogen
+```{r}
+nitrogen = data3 %>% 
+  ggplot(aes(lbs_n, cc, color = cc)) +
+  geom_point(size = 5) +
+  geom_text(aes(label = lbs_n), nudge_x = 7) +
+  geom_jitter(data = data2, mapping = aes(y = cc), alpha = 0.2, size = 3) +
+  theme(legend.position = "none",
+        plot.title= element_blank(),
+        axis.title.x=element_text(size= 20),
+        axis.title.y= element_blank(),
+        axis.text.y= element_blank(),
+        axis.text.x= element_text(size= 15),
+        strip.text.x= element_text(size=20)) +
+  labs(x = bquote('nitrogen'~(lbs~acre^-1)))
+
+nitrogen
+```
+
+
+## Lbs of Carbon
+```{r}
+carbon = data3 %>% 
+  ggplot(aes(lbs_c, cc, color = cc)) +
+  geom_point(size = 5) +
+  geom_text(aes(label = lbs_c), nudge_x = 100) +
+  geom_jitter(data = data2, mapping = aes(y = cc), alpha = 0.2, size = 3) +
+  theme(legend.position = "none",
+        plot.title= element_blank(),
+        axis.title.x=element_text(size= 20),
+        axis.title.y= element_blank(),
+        axis.text= element_text(size= 15),
+        strip.text.x= element_text(size=20)) +
+  labs(x = bquote('carbon'~(lbs~acre^-1)))
+
+carbon
+```
+
+## C:N Ratio
+```{r}
+ratio = data3 %>% 
+  ggplot() +
+  geom_col(aes(c_n, cc)) +
+  scale_fill_brewer(palette = "Blues") + 
+  #geom_text(aes(label = lbs_c), nudge_x = 100) +
+  theme(legend.position = "none",
+        plot.title= element_blank(),
+        axis.title.x=element_text(size= 20),
+        axis.title.y= element_blank(),
+        axis.text.y= element_blank(),
+        axis.text.x= element_text(size= 15),
+        strip.text.x= element_text(size=20)) +
+  labs(x = "C:N ratio")
+
+ratio
+```
+
+
+```{r}
+library(patchwork)
+CC_Plots = (biomass | ratio) / (carbon | nitrogen) +
+  plot_annotation(tag_levels = c('A'),
+                  title = 'Fall Cover Crop Information - Voss Farm',
+                  caption = 'figures do not represent results from statistical analysis') &
+  theme(plot.title = element_text(size= 25),
+        plot.tag = element_text(size= 15))
+```
+
+```{r, fig.height= 8, fig.width= 10}
+CC_Plots
+```
+
